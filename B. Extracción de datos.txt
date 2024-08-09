@@ -1,0 +1,103 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from bs4 import BeautifulSoup
+import csv
+import re
+
+url = "https://www.tripadvisor.com/Hotels-g297474-oa-Bucaramanga
+_Santander_Department-Hotels.html"
+
+# Configurar Selenium para utilizar el controlador adecuado 
+por ejemplo, ChromeDriver)
+driver = webdriver.Chrome()  # Asegúrate de tener instalado 
+el controlador de Chrome adecuado y en tu PATH
+
+# Abrir la página web con Selenium
+driver.get(url)
+
+# Esperar a que la página se cargue completamente 
+(puedes ajustar el tiempo de espera según sea necesario)
+driver.implicitly_wait(10)
+
+# Obtener el contenido HTML de la página actual
+page_source = driver.page_source
+
+# Cerrar el navegador controlado por Selenium
+driver.quit()
+
+# Analizar el contenido HTML de la página
+soup = BeautifulSoup(page_source, 'html.parser')
+
+# Extraer información de la página
+hotel_names = soup.find_all('a', class_='property_title')
+
+# Crear una lista para almacenar las reseñas
+reviews = []
+
+# Iterar sobre los nombres de los hoteles
+for hotel in hotel_names:
+    hotel_name = hotel.text.strip()
+    hotel_url = "https://www.tripadvisor.co" + 
+re.search(r'/Hotel_Review-(.*?)-Reviews', hotel['href']).group(0) 
++ "-Bucaramanga_Santander_Department.html#REVIEWS"
+    
+    # Configurar Selenium nuevamente para abrir la página del hotel
+    driver = webdriver.Chrome()  # Utiliza el mismo controlador que antes
+    
+    # Variables para el bucle de paginación
+    page_num = 0
+    page_limit = 272  # Límite de páginas de reseñas a extraer
+    next_button_disabled = False
+    
+    while page_num < page_limit and not next_button_disabled:
+        # Calcular el valor "orX" para la paginación
+        page_offset = page_num * 5
+        page_url = hotel_url.replace('-Reviews', '-or{}-Reviews'.format(page_offset))
+        
+        # Abrir la página del hotel con Selenium
+        driver.get(page_url)
+        driver.implicitly_wait(10)
+        
+        # Obtener el contenido HTML de la página del hotel
+        hotel_page_source = driver.page_source
+        
+        # Analizar el contenido HTML de la página del hotel
+        hotel_soup = BeautifulSoup(hotel_page_source, 'html.parser')
+        
+        # Extraer las reseñas del hotel
+        hotel_reviews = hotel_soup.find_all('div', class_='WAllg')
+        
+        # Agregar las reseñas a la lista
+        for review in hotel_reviews:
+            review_title = review.find('div', class_='KgQgP').text.strip()
+            review_text = review.find('div', class_='fIrGe').text.strip()
+        
+            # Buscar el elemento de fecha de estadía
+            date_element = review.find('span', class_='teHYY _R Me S4 H3')
+            date_text = ''
+
+            if date_element:
+                # Extraer el texto de la fecha de estadía
+                date_text = date_element.text.strip().replace('Fecha de la estadía:', '')
+            
+            reviews.append([hotel_name, review_title, review_text, date_text])
+        
+        # Verificar si el botón "Siguiente" está deshabilitado
+        next_button = hotel_soup.find('span', class_='ui_button nav next primary disabled')
+        next_button_disabled = next_button is not None
+        
+        page_num += 1
+    
+    # Cerrar el navegador controlado por Selenium
+    driver.quit()
+
+# Ruta del archivo CSV
+csv_file_path = "Bucaramanga3.csv"
+
+# Guardar las reseñas en un archivo CSV
+with open(csv_file_path, "w", newline="", encoding="utf-8") as file:
+    writer = csv.writer(file)
+    writer.writerow(["Hotel Name", "Review Title", "Review Text", "Stay Date"])
+    writer.writerows(reviews)
+
+print("Las reseñas se han guardado correctamente en 'Bucaramanga.csv'.")

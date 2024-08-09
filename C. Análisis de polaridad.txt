@@ -1,0 +1,51 @@
+import csv
+from textblob import TextBlob
+
+# Ruta del archivo CSV
+csv_file_path = "C:\\Users\\PC\\Documents\\Python\\Bases de datos\\Santander.csv"
+
+# Crear una lista para almacenar los resultados del análisis de sentimientos
+sentiment_results = []
+
+# Etiquetas para los diferentes rangos de polaridad
+sentiment_labels = {
+    'muy positivo': (0.6, 1.0),
+    'positivo': (0.2, 0.6),
+    'neutral': (-0.2, 0.2),
+    'negativo': (-0.6, -0.2),
+    'muy negativo': (-1.0, -0.6)
+}
+
+# Función para asignar la etiqueta correspondiente a la polaridad
+def assign_label(polarity):
+    for label, (lower, upper) in sentiment_labels.items():
+        if lower <= polarity < upper:
+            return label
+    return 'unknown'
+
+# Abrir el archivo CSV con el conjunto de caracteres "latin-1"
+with open(csv_file_path, "r", encoding="latin-1") as file:
+    reader = csv.DictReader(file)
+    for row in reader:
+        review_text = row['Review Text']
+        
+        # Realizar el análisis de sentimientos con TextBlob
+        blob = TextBlob(review_text)
+        sentiment = blob.sentiment.polarity
+        
+        # Asignar la etiqueta correspondiente a la polaridad
+        sentiment_label = assign_label(sentiment)
+        
+        # Agregar el resultado del análisis de sentimientos a la lista
+        sentiment_results.append([review_text, sentiment_label])
+
+# Ruta del archivo CSV de resultados
+results_csv_file_path = "Santander_S.csv"
+
+# Guardar los resultados del análisis de sentimientos en un archivo CSV
+with open(results_csv_file_path, "w", newline="", encoding="utf-8") as file:
+    writer = csv.writer(file)
+    writer.writerow(["Review Text", "Sentiment"])
+    writer.writerows(sentiment_results)
+
+print("El análisis de sentimientos se ha completado. Los resultados se han guardado en 'Santander_S.csv'.")

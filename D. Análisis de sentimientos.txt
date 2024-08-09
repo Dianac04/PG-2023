@@ -1,0 +1,33 @@
+import csv
+from transformers import pipeline
+
+# Ruta del archivo CSV de entrada
+input_csv_file_path = "C:\\Users\\PC\\Documents\\Python\\Bases de datos\\Santander.csv"
+
+# Ruta del archivo CSV de salida para los resultados
+output_csv_file_path = "Santander_E.csv"
+
+# Crear una lista para almacenar los resultados del análisis de sentimientos
+sentiment_results = []
+
+# Cargar el clasificador de sentimientos
+classifier = pipeline("text-classification", model='bhadresh-savani/albert-base-v2-emotion', return_all_scores=True)
+
+# Leer el archivo CSV de entrada y realizar el análisis de sentimientos para cada texto en la columna 'Review_text'
+with open(input_csv_file_path, "r", encoding="latin-1") as file:
+    reader = csv.DictReader(file)
+    for row in reader:
+        if 'Review Text' in row:
+            review_text = row['Review Text']
+            
+            # Realizar la predicción de sentimientos utilizando el clasificador de sentimientos
+            prediction = classifier(review_text)
+            sentiment_results.append(prediction[0])
+
+# Guardar los resultados del análisis de sentimientos en un archivo CSV
+with open(output_csv_file_path, "w", newline="", encoding="utf-8") as file:
+    writer = csv.DictWriter(file, fieldnames=["label", "score"])
+    writer.writeheader()
+    writer.writerows(sentiment_results)
+
+print("El análisis de sentimientos se ha completado. Los resultados se han guardado en 'Santander_E.csv'.")

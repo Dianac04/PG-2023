@@ -1,0 +1,59 @@
+import pandas as pd
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch, string, random
+
+tokenizer = AutoTokenizer.from_pretrained("DAMO-NLP-SG/zero-shot-classify-SSTuning-base")
+model = AutoModelForSequenceClassification.from_pretrained("DAMO-NLP-SG/zero-shot-classify-SSTuning-base")
+
+list_label = ["limpieza", "servicio", "comida", "actividades", "ubicación", "diseño y decoración", "mantenimiento"]
+list_ABC = [x for x in string.ascii_uppercase]
+
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+def check_text(model, text, list_label, shuffle=False): 
+    list_label = [x+'.' if x[-1] != '.' else x for x in list_label]
+    list_label_new = list_label + [tokenizer.pad_token]* (20 - len(list_label))
+    if shuffle: 
+        random.shuffle(list_label_new)
+    s_option = ' '.join(['('+list_ABC[i]+') '+list_label_new[i] for i in range(len(list_label_new))])
+    text = f'{s_option} {tokenizer.sep_token} {text}'
+
+    model.to(device).eval()
+    encoding = tokenizer([text], truncation=True, max_length=512, return_tensors='pt')
+    item = {key: val.to(device) for key, val in encoding.items()}
+    logits = model(**item).logits
+    
+    logits = logits if shuffle else logits[:,0:len(list_label)]
+    probs = torch.nn.functional.softmax(logits, dim=-1).tolist()
+    predictions = torch.argmax(logits, dim=-1).item() 
+    probabilities = [round(x, 5) for x in probs[0]]
+
+    return predictions, probabilities
+
+# Leer el archivo CSV
+data = pd.read_csv(r'C:\Users\PC\Documents\Python\Bases de datos\Santander.csv', encoding='ISO-8859-1')
+
+# Crear listas para almacenar la información de las reviews
+reviews = []
+labels = []
+probabilities_list = []
+
+# Analizar la columna 'Review Text' para cada fila del CSV
+for index, row in data.iterrows():
+    review_text = row['Review Text']
+    print(f'Analizando review {index + 1}...')
+    prediction, probabilities = check_text(model, review_text, list_label)
+    label = list_label[prediction]
+
+    reviews.append(review_text)
+    labels.append(label)
+    probabilities_list.append(probabilities)
+
+# Crear un DataFrame con la información recolectada
+df = pd.DataFrame({'Review Text': reviews, 'Label': labels})
+for i, label in enumerate(list_label):
+    df[label + ' Probability'] = [probs[i] for probs in probabilities_list]
+
+# Guardar el DataFrame en un nuevo archivo CSV
+df.to_csv('Santander_L.csv', index=False)
+print('¡Análisis completado y resultados guardados en el archivo CSV!')
